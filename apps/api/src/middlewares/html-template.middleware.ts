@@ -10,7 +10,7 @@ import { DATE_FORMAT, interpolate } from '@ghostfolio/common/helper';
 import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
 import { format } from 'date-fns';
 import { NextFunction, Request, Response } from 'express';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const title = 'Ghostfolio';
@@ -93,13 +93,28 @@ export class HtmlTemplateMiddleware implements NestMiddleware {
   public constructor(private readonly i18nService: I18nService) {
     try {
       this.indexHtmlMap = SUPPORTED_LANGUAGE_CODES.reduce(
-        (map, languageCode) => ({
-          ...map,
-          [languageCode]: readFileSync(
-            join(__dirname, '..', 'client', languageCode, 'index.html'),
-            'utf8'
-          )
-        }),
+        (map, languageCode) => {
+          const filePath = join(
+            __dirname,
+            '..',
+            'client',
+            languageCode,
+            'index.html'
+          );
+
+          if (existsSync(filePath)) {
+            return {
+              ...map,
+              [languageCode]: readFileSync(filePath, 'utf8')
+            };
+          } else {
+            Logger.warn(
+              `HTML file not found for language code '${languageCode}' at ${filePath}. Skipping...`,
+              'HTMLTemplateMiddleware'
+            );
+            return map;
+          }
+        },
         {}
       );
     } catch (error) {
